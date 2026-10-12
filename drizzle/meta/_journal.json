@@ -8,6 +8,13 @@
       "when": 1791549159732,
       "tag": "0000_fine_jack_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791817228759,
+      "tag": "0001_right_wildside",
+      "breakpoints": true
     }
   ]
 }

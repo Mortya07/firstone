@@ -1,3 +1,25 @@
 import {bucket,database} from '@/lib/db';
 import {authorize,boundedBody,failure,HttpError} from '@/lib/security';
-export async function POST(request:Request){let storedId:string|undefined;try{const user=await authorize(request,'upload');const bytes=await boundedBody(request,5*1024*1024);let mime='';if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)mime='image/jpeg';else if(bytes.length>8&&[137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v))mime='image/png';else if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')mime='image/webp';if(!mime||request.headers.get('content-type')!==mime)throw new HttpError(415,'Допустимы фотографии JPG, PNG или WebP до 5 МБ.');storedId=crypto.randomUUID();await bucket().put(storedId,bytes,{httpMetadata:{contentType:mime}});await database().prepare('INSERT INTO images (id,owner,mime,created_at) VALUES (?,?,?,?)').bind(storedId,user.userId,mime,Date.now()).run();return Response.json({image:`/api/images/${storedId}`},{headers:{'Cache-Control':'no-store'}});}catch(error){if(storedId)await bucket().delete(storedId).catch(()=>{});return failure(error);}}
+import {MAX_IMAGE_BYTES,normalizePhoto} from '@/lib/image-validation';
+import {discardReservation,maintainStorage,reserveImage} from '@/lib/image-storage';
+
+export async function POST(request:Request){
+  let reservedId:string|undefined;
+  try{
+    const user=await authorize(request,'upload');
+    const bytes=await boundedBody(request,MAX_IMAGE_BYTES);
+    await maintainStorage();
+    const id=crypto.randomUUID();
+    await reserveImage(id,user.userId);reservedId=id;
+    const clean=normalizePhoto(bytes,request.headers.get('content-type'));
+    await bucket().put(id,clean,{httpMetadata:{contentType:'image/jpeg'}});
+    const result=await database().prepare("UPDATE images SET bytes=?,state='ready' WHERE id=? AND owner=? AND state='pending'")
+      .bind(clean.length,id,user.userId).run();
+    if(result.meta.changes!==1)throw new HttpError(503,'Не удалось сохранить фото. Попробуйте снова.');
+    reservedId=undefined;
+    return Response.json({image:`/api/images/${id}`},{headers:{'Cache-Control':'no-store'}});
+  }catch(error){
+    if(reservedId)await discardReservation(reservedId).catch(()=>console.error('Photo rollback will retry'));
+    return failure(error);
+  }
+}

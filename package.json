@@ -14,6 +14,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@cf-wasm/photon": "0.4.0",
     "@base-ui/react": "^1.7.0",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
@@ -63,6 +64,8 @@
   },
   "type": "module",
   "overrides": {
+    "fflate": "0.8.3",
+    "esbuild": "0.28.2",
     "miniflare": {
       "sharp": "0.35.5"
     }
