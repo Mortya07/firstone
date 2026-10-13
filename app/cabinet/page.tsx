@@ -4,4 +4,14 @@ import {Header} from '@/app/marketplace';
 import Editor from './editor';
 export const dynamic='force-dynamic';
 export const metadata={title:'Профиль вашей бригады',robots:{index:false,follow:false}};
-export default async function Cabinet(){const user=await requireChatGPTUser('/cabinet');let profile=null,unavailable=false;try{profile=await ownedProfile(user.userId);}catch{unavailable=true;}return <><Header/><main className="shell cabinet"><div className="breadcrumb"><a href="/">Каталог</a><span>/</span>Личный кабинет</div><div className="cabinet-heading"><div><p className="eyebrow">ДЛЯ БРИГАД И КОМПАНИЙ</p><h1>Расскажите о своей работе.</h1><p>Заполните профиль и добавьте законченные проекты.</p></div><a href={chatGPTSignOutPath('/')} target="_top">Выйти</a></div>{unavailable?<div className="storage-warning">Сейчас не удалось загрузить профиль. Обновите страницу позже: изменения не будут перезаписаны.</div>:<Editor initial={profile}/>}</main></>;}
+export default async function Cabinet(){
+  const user=await requireChatGPTUser('/cabinet');
+  let profile=null,unavailable=false;
+  try{profile=await ownedProfile(user.userId);}catch{unavailable=true;}
+  return <><Header/><main className="shell cabinet" id="main-content" tabIndex={-1}>
+    <div className="breadcrumb"><a href="/#catalog">Каталог бригад</a><span>/</span>Кабинет бригады</div>
+    <div className="cabinet-heading"><div><p className="eyebrow">ДЛЯ БРИГАД И РЕМОНТНЫХ КОМПАНИЙ</p><h1>Профиль вашей бригады</h1><p>Заполните данные, добавьте работы и нажмите «Опубликовать профиль» или «Сохранить изменения».</p><a className="cabinet-client-link" href="/#catalog">Ищете исполнителя? Перейти к бригадам →</a></div><a href={chatGPTSignOutPath('/')} target="_top">Выйти</a></div>
+    <ol className="cabinet-steps" aria-label="Как разместить бригаду"><li><span>1</span>Данные бригады</li><li><span>2</span>Выполненные работы</li><li><span>3</span>Публикация в каталоге</li></ol>
+    {unavailable?<div className="storage-warning">Сейчас не удалось загрузить профиль. Обновите страницу позже: изменения не будут перезаписаны.</div>:<Editor initial={profile}/>}
+  </main></>;
+}
