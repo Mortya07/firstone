@@ -32,7 +32,7 @@ export default {
       response.headers.set('Strict-Transport-Security','max-age=31536000');
       const nonce=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
       response.headers.set('Content-Security-Policy',`default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com https://*.openai.com https://*.chatgpt.site`);
-      if(new URL(request.url).pathname.startsWith('/cabinet')||new URL(request.url).pathname.startsWith('/api/profile'))response.headers.set('Cache-Control','private,no-store');
+      if(['/cabinet','/api/profile','/crm','/api/crm'].some(path=>new URL(request.url).pathname.startsWith(path)))response.headers.set('Cache-Control','private,no-store');
       if(response.headers.get('Content-Type')?.includes('text/html'))return new HTMLRewriter().on('script',{element(element){element.setAttribute('nonce',nonce);}}).transform(response);
       return response;
     });
