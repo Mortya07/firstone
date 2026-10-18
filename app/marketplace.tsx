@@ -1,12 +1,13 @@
 'use client';
 import {useState,useEffect,useRef} from 'react';
 import SearchTools from './search-tools';
-import {MapPin,Search,Heart,Plus,Star,HardHat,Layers,Clock,Users,ShieldCheck,SlidersHorizontal,ArrowRight,X,Check} from 'lucide-react';
+import {MapPin,Search,Heart,Plus,Star,HardHat,Layers,Clock,Users,ShieldCheck,SlidersHorizontal,ArrowRight,X,Check,PaintRoller} from 'lucide-react';
 import {usePathname} from 'next/navigation';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from '@/components/ui/dialog';
-import {cities,specialties,repairSpecialties,constructionSpecialties,money,type Profile} from '@/lib/data';
-export function Picker({value,onChange,options,label}:{value:string;onChange:(v:string)=>void;options:string[];label:string}){return <Select value={value} onValueChange={onChange}><SelectTrigger aria-label={label}><SelectValue/></SelectTrigger><SelectContent>{options.map(x=><SelectItem key={x} value={x}>{/^\d+$/.test(x)?`До ${money(Number(x))} ₸`:x}</SelectItem>)}</SelectContent></Select>;}
+import CityPicker from '@/components/city-picker';
+import {specialties,repairSpecialties,constructionSpecialties,brigadeSpecialties,specialtyScope,matchesSpecialty,money,type Profile,type WorkScope} from '@/lib/data';
+export function Picker({value,onChange,options,label}:{value:string;onChange:(v:string)=>void;options:string[];label:string}){return <Select value={value} onValueChange={onChange}><SelectTrigger aria-label={label}><SelectValue/></SelectTrigger><SelectContent>{options.map(x=><SelectItem key={x} value={x}>{x==='Любой ремонт'?'Любые виды работ':/^\d+$/.test(x)?`До ${money(Number(x))} ₸`:x}</SelectItem>)}</SelectContent></Select>;}
 export function Header(){
   const path=usePathname(),cabinet=path==='/cabinet',crm=path?.startsWith('/crm');
   return <><a href="#main-content" className="skip-link">Перейти к содержимому</a><header className="header"><div className="shell header-inner">
@@ -18,35 +19,34 @@ export function Header(){
 export default function Marketplace({initialProfiles}:{initialProfiles:Profile[]}){
 const [city,setCity]=useState('Все города'),[specialty,setSpecialty]=useState('Любой ремонт'),[query,setQuery]=useState(''),[max,setMax]=useState('Любой бюджет'),[sort,setSort]=useState('Сначала новые'),[saved,setSaved]=useState<string[]>([]),[favorites,setFavorites]=useState(false),[filtersOpen,setFiltersOpen]=useState(false);
 const [savedReady,setSavedReady]=useState(false);
-const [workScope,setWorkScope]=useState<'all'|'repair'|'construction'>('all');
+const [workScope,setWorkScope]=useState<WorkScope>('all');
 const visibleSpecialties=workScope==='repair'?repairSpecialties:workScope==='construction'?constructionSpecialties:specialties;
-const chooseScope=(scope:'all'|'repair'|'construction')=>{setWorkScope(scope);setSpecialty('Любой ремонт');};
+const chooseScope=(scope:WorkScope)=>{setWorkScope(scope);setSpecialty('Любой ремонт');};
 const filterButton=useRef<HTMLButtonElement>(null);
 useEffect(()=>{try{const value=JSON.parse(localStorage.getItem('brigadir:favorites:v1')||'[]');if(Array.isArray(value))setSaved([...new Set(value.filter((id):id is string=>typeof id==='string'&&id.length<=100))].slice(0,200));}catch{/* Keep favorites in memory when browser storage is unavailable. */}setSavedReady(true);},[]);
 useEffect(()=>{if(savedReady)try{localStorage.setItem('brigadir:favorites:v1',JSON.stringify(saved));}catch{/* Private browsing can disallow storage. */}},[saved,savedReady]);
 const reset=()=>{setCity('Все города');setSpecialty('Любой ремонт');setMax('Любой бюджет');setQuery('');setFavorites(false);setWorkScope('all');};
 const scrollToCatalog=()=>document.getElementById('catalog')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 const filters=[...(workScope!=='all'?[{label:workScope==='construction'?'Строительство':'Ремонт',clear:()=>chooseScope('all')}]:[]),...(city!=='Все города'?[{label:city,clear:()=>setCity('Все города')}]:[]),...(specialty!=='Любой ремонт'?[{label:specialty,clear:()=>setSpecialty('Любой ремонт')}]:[]),...(max!=='Любой бюджет'?[{label:`До ${money(Number(max))} ₸/м²`,clear:()=>setMax('Любой бюджет')}]:[]),...(query.trim()?[{label:`Поиск: ${query.trim()}`,clear:()=>setQuery('')}]:[])];
-let list=initialProfiles.filter(p=>(workScope==='all'||(workScope==='repair'?repairSpecialties:constructionSpecialties).includes(p.specialty))&&(city==='Все города'||p.city===city)&&(specialty==='Любой ремонт'||p.specialty===specialty)&&(`${p.name} ${p.description} ${p.specialty}`.toLowerCase().includes(query.trim().toLowerCase()))&&(max==='Любой бюджет'||p.price<=Number(max))&&(!favorites||saved.includes(p.id)));
+let list=initialProfiles.filter(p=>(workScope==='all'||specialtyScope(p.specialty)===workScope)&&(city==='Все города'||p.city===city)&&matchesSpecialty(p.specialty,specialty)&&(`${p.name} ${p.description} ${p.specialty}`.toLowerCase().includes(query.trim().toLowerCase()))&&(max==='Любой бюджет'||p.price<=Number(max))&&(!favorites||saved.includes(p.id)));
 if(sort==='Сначала дешевле')list=[...list].sort((a,b)=>a.price-b.price);if(sort==='По рейтингу')list=[...list].sort((a,b)=>(b.rating??0)-(a.rating??0));
 const filterFields=<>
   <div className="filter-field"><p>Максимальная цена работ</p><Picker value={max} onChange={setMax} options={['Любой бюджет','20000','30000','40000']} label="Максимальная цена за м²"/><p className="filter-note">Цена за 1 м², не за весь ремонт. Материалы — отдельно.</p></div>
-  <div className="filter-divider"/><p className="filter-heading">Вид работ</p>
-  <div className="filter-links">{['Любой ремонт',...visibleSpecialties].map(s=><button className={specialty===s?'chosen':''} aria-pressed={specialty===s} key={s} onClick={()=>setSpecialty(s)}><span className="radio" aria-hidden="true">{specialty===s&&<span/>}</span>{s==='Любой ремонт'?'Все виды работ':s}</button>)}</div>
+  <div className="filter-divider"/><div className="filter-field"><p>Уточнить вид работ</p><Picker value={specialty} onChange={setSpecialty} options={['Любой ремонт',...visibleSpecialties]} label="Вид работ в фильтрах"/><p className="filter-note">Необязательно. Оставьте любые виды работ, если пока не определились.</p></div>
   <button className="reset" onClick={reset}>Сбросить все условия</button>
 </>;
 return <>
-  <SearchTools profiles={initialProfiles} onSearch={(c,q,s)=>{setCity(c);setQuery(q);setSpecialty(s);setWorkScope('all');setFavorites(false);setMax('Любой бюджет');scrollToCatalog();}}/>
+  <SearchTools profiles={initialProfiles} onSearch={(c,q,s)=>{setCity(c);setQuery(q);setSpecialty(brigadeSpecialties.includes(s)?'Любой ремонт':s);setWorkScope(specialtyScope(s));setFavorites(false);setMax('Любой бюджет');scrollToCatalog();}}/>
   <Header/>
   <main className="shell" id="main-content" tabIndex={-1}>
     <div className="breadcrumb">Главная <span>/</span> Ремонт и строительство</div>
     <section className="intro"><div><p className="eyebrow">РЕМОНТ И СТРОИТЕЛЬСТВО В КАЗАХСТАНЕ</p><h1>Найдите бригаду<br/><span>для вашего проекта.</span></h1><p>Для ремонта квартиры или строительства дома. Выберите город и работы, сравните портфолио и цены, свяжитесь с бригадой.</p><a href="/cabinet" className="contractor-link">Вы бригадир? Разместите свою бригаду <ArrowRight size={16}/></a></div><div className="intro-image"><img src="/images/living.jpg" alt="Светлая современная гостиная"/><span className="image-label"><Layers size={16}/>Сначала посмотрите работы — потом выбирайте</span></div></section>
     <form className="searchbar clear-search" aria-label="Поиск бригады" onSubmit={e=>{e.preventDefault();scrollToCatalog();}}>
-      <div className="search-field city-field"><span className="search-caption">Где нужен ремонт?</span><div className="city-picker"><MapPin size={20}/><Picker value={city} onChange={setCity} options={['Все города',...cities]} label="Город"/></div></div>
+      <div className="search-field city-field"><span className="search-caption">В каком городе?</span><div className="city-picker"><MapPin size={20}/><CityPicker value={city} onChange={setCity} label="Город" allowAll/></div></div>
       <div className="search-field query-field"><label className="search-caption" htmlFor="brigade-search">Название или вид работ</label><div className="search-input"><Search size={20}/><input id="brigade-search" aria-label="Поиск бригады" maxLength={100} placeholder="Например, ремонт кухни" value={query} onChange={e=>setQuery(e.target.value)}/></div></div>
       <button type="submit" className="button orange">Показать бригады <ArrowRight size={17}/></button>
     </form>
-    <div className="category-field"><span className="search-caption">Какие работы нужны?</span><div className="work-scope" aria-label="Направление работ">{([['all','Все работы'],['repair','Ремонт'],['construction','Строительство']] as const).map(([scope,label])=><button key={scope} aria-pressed={workScope===scope} className={workScope===scope?'selected':''} onClick={()=>chooseScope(scope)}>{label}</button>)}</div><div className="categories" aria-label="Вид работ">{['Любой ремонт',...visibleSpecialties].map(s=><button key={s} aria-pressed={specialty===s} className={specialty===s?'selected':''} onClick={()=>setSpecialty(s)}>{s==='Любой ремонт'?<Layers size={16}/>:null}{s==='Любой ремонт'?'Все виды работ':s}</button>)}</div></div>
+    <section className="work-selection" id="work-selector" aria-labelledby="work-title"><div className="work-selection-heading"><h2 id="work-title">Какие работы нужны?</h2><p>Начните с направления — детали можно уточнить позже.</p></div><div className="work-kind-grid" role="group" aria-label="Направление работ">{([{scope:'all',title:'Любые работы',description:'Посмотреть все бригады',icon:Layers},{scope:'repair',title:'Ремонт',description:'Квартира, дом или офис',icon:PaintRoller},{scope:'construction',title:'Строительство',description:'Дом, фундамент и другие работы',icon:HardHat}] as const).map(({scope,title,description,icon:Icon})=><button key={scope} className={'work-kind-card '+(workScope===scope?'selected':'')} aria-pressed={workScope===scope} onClick={()=>chooseScope(scope)}><span className="work-kind-icon"><Icon size={23} aria-hidden="true"/></span><span className="work-kind-copy"><strong>{title}</strong><small>{description}</small></span><span className="work-kind-check" aria-hidden="true">{workScope===scope&&<Check size={13}/>}</span></button>)}</div><div className="work-detail"><div><label id="work-detail-label">Уточнить вид работ</label><span>Необязательно</span></div><Picker value={specialty} onChange={setSpecialty} options={['Любой ремонт',...visibleSpecialties]} label="Уточнить вид работ"/></div></section>
     <section id="catalog" className="catalog" aria-label="Каталог бригад">
       <aside className="filters"><h2><SlidersHorizontal size={18}/>Уточнить поиск</h2>{filterFields}<div className="trust-note"><ShieldCheck size={25}/><h3>Перед началом работ</h3><p>Уточните смету, сроки и условия договора.</p><a href="#how-it-works">Как выбрать бригаду <ArrowRight size={14}/></a></div></aside>
       <div className="results">

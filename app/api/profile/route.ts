@@ -1,9 +1,9 @@
 import {z} from 'zod';
-import {cities,specialties} from '@/lib/data';
+import {cities,profileSpecialties} from '@/lib/data';
 import {database,ownedProfile} from '@/lib/db';
 import {authorize,boundedBody,failure,HttpError} from '@/lib/security';
 const project=z.object({title:z.string().trim().min(3).max(100),area:z.number().int().min(1).max(10000),duration:z.number().int().min(1).max(1000),budget:z.number().int().min(0).max(1000000000),image:z.string().regex(/^\/api\/images\/[0-9a-f-]{36}$/),description:z.string().trim().max(1200)}).strict();
-const schema=z.object({name:z.string().trim().min(3).max(80),city:z.string().refine(v=>cities.includes(v)),specialty:z.string().refine(v=>specialties.includes(v)),price:z.number().int().min(100).max(1000000),experience:z.number().int().min(0).max(60),team:z.number().int().min(1).max(200),description:z.string().trim().min(30).max(2000),phone:z.string().regex(/^\+7\d{10}$/),projects:z.array(project).max(12)}).strict();
+const schema=z.object({name:z.string().trim().min(3).max(80),city:z.string().refine(v=>cities.includes(v)),specialty:z.string().refine(v=>profileSpecialties.includes(v)),price:z.number().int().min(100).max(1000000),experience:z.number().int().min(0).max(60),team:z.number().int().min(1).max(200),description:z.string().trim().min(30).max(2000),phone:z.string().regex(/^\+7\d{10}$/),projects:z.array(project).max(12)}).strict();
 export async function POST(request:Request){try{
   const user=await authorize(request,'profile');
   if(!request.headers.get('content-type')?.startsWith('application/json'))throw new HttpError(415,'Ожидается JSON.');
