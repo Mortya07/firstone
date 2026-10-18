@@ -1,5 +1,5 @@
 export type Project={title:string;area:number;duration:number;budget:number;image:string;description:string};
-export type Profile={id:string;name:string;city:string;specialty:string;price:number;experience:number;team:number;description:string;phone:string;projects:Project[];demo?:boolean;rating?:number;reviewCount?:number};
+export type Profile={id:string;name:string;city:string;specialty:string;price:number;experience:number;team:number;description:string;phone:string;whatsapp?:string;projects:Project[];demo?:boolean;rating?:number;reviewCount?:number};
 export {cities} from './cities';
 export const repairSpecialties=['Ремонт под ключ','Косметический ремонт','Капитальный ремонт','Ремонт офисов','Санузлы и плитка'];
 export const constructionSpecialties=['Строительство домов','Фундаменты','Кладка стен','Кровельные работы','Фасады и утепление','Каркасное строительство'];

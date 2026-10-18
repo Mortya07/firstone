@@ -1,0 +1,1 @@
+ALTER TABLE `profiles` ADD `whatsapp` text DEFAULT '' NOT NULL;

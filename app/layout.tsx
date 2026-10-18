@@ -4,6 +4,7 @@ import "./product.css";
 import "./navigation.css";
 import "./crm.css";
 import "./search.css";
+import "./contact.css";
 
 export const metadata: Metadata = {
   metadataBase:new URL('https://brigadir-kz.alizhansamat087.chatgpt.site'),
